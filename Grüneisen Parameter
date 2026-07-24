@@ -79,7 +79,7 @@ for region in regions:
 # Plot Formatting
 plt.xlabel('Relative Volume ($V/V_0$)', fontsize=12)
 plt.ylabel('Wavenumber (cm$^{-1}$)', fontsize=12)
-plt.title('Bridgmanite Raman Mode Grüneisen Fit', fontsize=14, fontweight='bold')
+plt.title('Raman Mode Grüneisen Fit', fontsize=14, fontweight='bold')
 plt.gca().invert_xaxis() # Compression goes left to right
 plt.grid(True, linestyle='--', alpha=0.5)
 plt.legend()
