@@ -19,7 +19,7 @@ pv_df = pd.read_csv(r'C:\Users\Name\FilePath\BaseValuesFileName.txt', sep=r'\s+'
 raman_df = pd.read_csv(r'C:\Users\Name\FilePath\ExperimentalValuesFileName.txt.txt', sep=r'\s+')
 
 
-# 2. INTERPOLATE VOLUMES FOR YOUR PRESSURES
+# 2. INTERPOLATE VOLUMES FOR PRESSURES
 -----------------------------------------------------------------------------------------------------------------------------------
 # Baseline volume at 0 GPa from Reference Sheet
 V0 = pv_df.loc[pv_df['Pressure_Gpa'] == 0, 'Volume/unit_cell_(A^3)'].values[0]
