@@ -1,0 +1,86 @@
+This code uses the integration of the Grüneisen parameter equation (3.3) found in:
+"Thermodynamics with the Grüneisen parameter: Fundamentals and applications to high pressure physics and geophysics" (Stacy et al. 2019)
+
+Final equation used after calculations: v=v_0((v_0)/(v))^gammi_i
+
+Data/ .txt files needed: experimental pressures and Raman peak positions, v_0 (baseline volume), and V. 
+
+BaseValuesFile has: Pressure (GPa) and Volume/unit cell (A^3)
+ExperimentalValues has: Pressure (GPa), Wavenumber of peak pos (cm^-1), and peak region (how I defined different peaks)
+
+*** CODE STARTS HERE ***
+
+# 1. IMPORT CLEANED .TXT FILES
+-----------------------------------------------------------------------------------------------------------------------------------
+# Load PV Reference Sheet
+pv_df = pd.read_csv(r'C:\Users\Name\FilePath\BaseValuesFileName.txt', sep=r'\s+')
+
+# Load Experimental Peak Centers
+raman_df = pd.read_csv(r'C:\Users\Name\FilePath\ExperimentalValuesFileName.txt.txt', sep=r'\s+')
+
+
+# 2. INTERPOLATE VOLUMES FOR YOUR PRESSURES
+-----------------------------------------------------------------------------------------------------------------------------------
+# Baseline volume at 0 GPa from Reference Sheet
+V0 = pv_df.loc[pv_df['Pressure_Gpa'] == 0, 'Volume/unit_cell_(A^3)'].values[0]
+
+# Create an interpolation function from PV Reference Sheet
+#   Estimates unit cell volume for decimal experimental pressures
+get_volume = interp1d(pv_df['Pressure_Gpa'], pv_df['Volume/unit_cell_(A^3)'], kind='linear', fill_value='extrapolate')
+
+# Add Volume and V/V0 directly to Raman DataFrame
+#   Assigns interpolated unit cell vol. to every experimental Raman point
+raman_df['Volume'] = get_volume(raman_df['Pressure_Gpa'])
+raman_df['V_V0'] = raman_df['Volume'] / V0
+
+
+# 3. DEFINE GRÜNEISEN MODEL
+-----------------------------------------------------------------------------------------------------------------------------------
+def grueneisen_model(v_v0, nu_0, gamma_i):
+    """nu = nu_0 * (V0 / V) ^ gamma_i"""
+    return nu_0 * ((1.0 / v_v0) ** gamma_i)
+
+
+# 4. CALCULATE GAMMA_I FOR EACH SPECTRAL REGION
+-----------------------------------------------------------------------------------------------------------------------------------
+regions = raman_df['Peak_Region'].unique()
+
+plt.figure(figsize=(8, 6))
+
+# Fits and plots each spectral region
+for region in regions:
+    # Filters raman_df to only data in current region
+    subset = raman_df[raman_df['Peak_Region'] == region]
+
+    v_v0_data = subset['V_V0'].values
+    nu_data = subset['Wavenumber_cm^-1'].values
+    
+    # Use lowest pressure wavenumber as initial guess for nu_0
+    nu_0_guess = nu_data[0]
+    
+    # Fit nu_0 and gamma_i
+    #   Runs non-linear least-squares fitting of GM agains v_v0_data and nu_data
+    #   Solves for optimal values of v0 and gamma i that describes the data
+    popt, _ = curve_fit(grueneisen_model, v_v0_data, nu_data, p0=[nu_0_guess, 1.0])
+    nu_0_fit, gamma_fit = popt
+    
+    print(f"--- Peak Region [{region} cm^-1] ---")
+    print(f"Fitted nu_0  : {nu_0_fit:.2f} cm^-1")
+    print(f"Fitted gamma : {gamma_fit:.3f}\n")
+    
+    # Plot data points
+    plt.scatter(subset['V_V0'], nu_data, label=f'{region} cm$^{{-1}}$ (Data)')
+    
+    # Generate smooth trendline
+    v_dense = np.linspace(min(v_v0_data), max(v_v0_data), 50)
+    nu_trend = grueneisen_model(v_dense, nu_0_fit, gamma_fit)
+    plt.plot(v_dense, nu_trend, '--', label=f'{region} Fit ($\gamma$={gamma_fit:.2f})')
+
+# Plot Formatting
+plt.xlabel('Relative Volume ($V/V_0$)', fontsize=12)
+plt.ylabel('Wavenumber (cm$^{-1}$)', fontsize=12)
+plt.title('Bridgmanite Raman Mode Grüneisen Fit', fontsize=14, fontweight='bold')
+plt.gca().invert_xaxis() # Compression goes left to right
+plt.grid(True, linestyle='--', alpha=0.5)
+plt.legend()
+plt.show()
